@@ -36,14 +36,14 @@ func getSearchResult(titleName string, page int) (SearchResult, error) {
 	return result, err
 }
 
-func searchTitle(nameOfTitle string, page int) (SearchResult, string, int, error) {
-	var pageNumber = page
+func searchTitle(nameOfTitle string, page int) (searchResult SearchResult, title string, pageNumber int, err error) {
+	var pageNum = page
 	var titleName = nameOfTitle
 	var result SearchResult
 
-	result, err := getSearchResult(titleName, page)
+	result, err = getSearchResult(titleName, page)
 	if err != nil {
-		return result, titleName, pageNumber, err
+		return result, titleName, pageNum, err
 	}
 
 	if len(result.Results) <= 0 {
@@ -55,10 +55,10 @@ func searchTitle(nameOfTitle string, page int) (SearchResult, string, int, error
 			fmt.Println(i, result.Results[i].Name)
 		}
 	}
-	fmt.Println("You are on Page", pageNumber)
+	fmt.Println("You are on Page", pageNum)
 
-	selectTitle(result, titleName, pageNumber)
-	return result, titleName, pageNumber, err
+	selectTitle(result, titleName, pageNum)
+	return result, titleName, pageNum, err
 }
 
 func selectTitle(result SearchResult, titleName string, pageNumber int) {
@@ -101,6 +101,7 @@ func getTitleID(result SearchResult, titleName string, pageNumber int, input str
 func getTitleDetails(chosenShow int) (ShowDetails, error) {
 	var show ShowDetails
 	var jsonData []byte
+	var hasSpacial bool
 
 	resp, err := http.Get(dbUrl + "/tv/" + strconv.Itoa(chosenShow) + query)
 	if err != nil {
@@ -117,11 +118,14 @@ func getTitleDetails(chosenShow int) (ShowDetails, error) {
 	for i := range show.Seasons {
 		fmt.Println(show.Seasons[i].SeasonNumber, show.Seasons[i].Name)
 	}
-	err = selectSeason(show, show.ID)
+	if strings.Contains(show.Seasons[0].Name , "Specials") {
+		hasSpacial = true
+	}
+	err = selectSeason(show, show.ID, hasSpacial)
 	return show, err
 }
 
-func selectSeason(show ShowDetails, chosenShow int) error {
+func selectSeason(show ShowDetails, chosenShow int, hasSpacial bool) error {
 	var seasonId int
 
 	fmt.Println("Please enter the number of your show to select.")
@@ -129,14 +133,14 @@ func selectSeason(show ShowDetails, chosenShow int) error {
 
 	if _, err := strconv.Atoi(input); err != nil {
 		fmt.Printf("%q is not a number\n", input)
-		_ = selectSeason(show, chosenShow)
+		_ = selectSeason(show, chosenShow,hasSpacial)
 	}
 
 	seasonId, _ = strconv.Atoi(input)
 
-	if seasonId > len(show.Seasons) || seasonId < 0 {
+	if seasonId > len(show.Seasons) || seasonId <= 0 && !hasSpacial {
 		fmt.Println("The season number you entered does not exist")
-		_ = selectSeason(show, chosenShow)
+		_ = selectSeason(show, chosenShow,hasSpacial)
 	}
 	err := searchSeasonDetails(chosenShow, seasonId)
 	return err
